@@ -104,7 +104,7 @@ const StockList = ({ stocks, selectedStock, onSelectStock }: StockListProps) => 
                           <TrendingDown className="h-3 w-3 mr-1" />
                         ) : null}
                         {stock.changePercent > 0 ? '+' : ''}
-                        {stock.changePercent.toFixed(2)}%
+                        {stock.changePercent?.toFixed(2) ?? '0.00'}%
                       </div>
                       <div className={`text-xs ${changeColor}`}>
                         {stock.change > 0 ? '+' : ''}

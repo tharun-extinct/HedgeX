@@ -123,14 +123,14 @@ export const getStocks = async (): Promise<Stock[]> => {
   }
 };
 
-// Connect to a persistent SQLite database
+// This function is no longer needed as we're using the API service
+// Frontend shouldn't directly connect to SQLite database
 const connectToDatabase = async () => {
   try {
-    const db = await openDatabase('path/to/your/database/file.sqlite');
-    console.log('Connected to the database successfully');
-    return db;
+    console.log('Using API service for database operations');
+    return null; // Return null as we're not actually connecting to a database directly
   } catch (error) {
-    console.error('Error connecting to the database:', error);
+    console.error('Error in database operation:', error);
     throw error;
   }
 };
@@ -138,30 +138,25 @@ const connectToDatabase = async () => {
 // Update stock data with server data
 export const updateStocks = async (): Promise<Stock[]> => {
   try {
-    const db = await connectToDatabase();
     const response = await api.getLatestStocks();
     if (response && response.length > 0) {
-      // Save data to the database
-      await saveStocksToDatabase(db, response);
       return response;
     }
     return await getStocks(); // Fallback to regular stocks endpoint
   } catch (error) {
     console.error('Error updating stocks:', error);
-    return [];
+    return mockStocks; // Return mock data as fallback
   }
 };
 
-// Function to save stocks to the database
-const saveStocksToDatabase = async (db, stocks) => {
+// This function is no longer needed as we're using the API service
+// Frontend shouldn't directly save to SQLite database
+const saveStocksToDatabase = async (stocks) => {
   try {
-    const insertQuery = 'INSERT INTO stocks (id, symbol, name, price, change, changePercent, volume, sector, high, low, open) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
-    for (const stock of stocks) {
-      await db.run(insertQuery, [stock.id, stock.symbol, stock.name, stock.price, stock.change, stock.changePercent, stock.volume, stock.sector, stock.high, stock.low, stock.open]);
-    }
-    console.log('Stocks saved to the database successfully');
+    console.log('Using API service for database operations');
+    // The actual saving is handled by the backend
   } catch (error) {
-    console.error('Error saving stocks to the database:', error);
+    console.error('Error in database operation:', error);
   }
 };
 
@@ -172,7 +167,7 @@ export const getPortfolio = async (): Promise<Portfolio> => {
     return response;
   } catch (error) {
     console.error('Error fetching portfolio:', error);
-    return null; // Return null if API fails
+    return mockPortfolio; // Return mock data if API fails
   }
 };
 
@@ -186,7 +181,7 @@ export const updatePortfolio = async (): Promise<Portfolio> => {
     return await getPortfolio(); // Fallback to regular portfolio endpoint
   } catch (error) {
     console.error('Error updating portfolio:', error);
-    return null; // Return null if API fails
+    return mockPortfolio; // Return mock data if API fails
   }
 };
 
@@ -244,7 +239,15 @@ export const getPortfolioAllocation = async (): Promise<PortfolioAllocation[]> =
 export const initializeStocksData = async (): Promise<void> => {
   try {
     // First check if we already have data initialized
-    const checkStocks = await getStocks();
+    let checkStocks = [];
+    try {
+      checkStocks = await getStocks();
+    } catch (fetchError) {
+      console.warn('Error checking existing stocks:', fetchError);
+      // If we can't check stocks, we should try to initialize
+      checkStocks = [];
+    }
+    
     if (checkStocks && checkStocks.length > 0) {
       console.log('Data already initialized');
       return; // Data already initialized
@@ -253,30 +256,56 @@ export const initializeStocksData = async (): Promise<void> => {
     console.log('Initializing stocks and portfolio data...');
     // Initialize with mock data if no data exists
     try {
-      await Promise.all([
-        api.initializeStocksData({ stocks: mockStocks }),
-        api.initializePortfolioData({ portfolio: mockPortfolio })
-      ]);
+      // Initialize stocks first
+      await api.initializeStocksData({ stocks: mockStocks });
+      // Wait a short moment to ensure stocks are saved
+      await new Promise(resolve => setTimeout(resolve, 500));
+      // Then initialize portfolio
+      await api.initializePortfolioData({ portfolio: mockPortfolio });
 
-      // Verify initialization
-      const [stocks, portfolio] = await Promise.all([
-        getStocks(),
-        getPortfolio()
-      ]);
+      // Verify initialization with retries
+      let retryCount = 0;
+      const maxRetries = 3;
+      let initialized = false;
 
-      if (!stocks || stocks.length === 0 || !portfolio) {
-        console.warn('Data initialization verification failed, using mock data');
-        // Continue with mock data instead of throwing
-      } else {
-        console.log('Data initialization successful');
+      while (retryCount < maxRetries && !initialized) {
+        try {
+          const [stocks, portfolio] = await Promise.all([
+            getStocks(),
+            getPortfolio()
+          ]);
+
+          if (stocks && stocks.length > 0 && portfolio) {
+            console.log('Data initialization successful');
+            initialized = true;
+            break;
+          }
+          
+          retryCount++;
+          if (retryCount < maxRetries) {
+            console.log(`Initialization verification attempt ${retryCount + 1}/${maxRetries}`);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        } catch (verifyError) {
+          console.warn(`Verification attempt ${retryCount + 1} failed:`, verifyError);
+          retryCount++;
+          if (retryCount < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        }
+      }
+
+      if (!initialized) {
+        const error = new Error('Data initialization verification failed after maximum retries');
+        console.error(error);
+        throw error;
       }
     } catch (initError) {
-      console.warn('API initialization failed, falling back to mock data:', initError);
-      // Continue with application flow even if initialization fails
+      console.error('API initialization failed:', initError);
+      throw new Error(`Failed to initialize stock data: ${initError.message}`);
     }
   } catch (error) {
     console.error('Failed to initialize data:', error);
-    // Don't throw the error, just log it and continue
-    // This prevents the white screen after login
+    throw new Error(`Data initialization failed: ${error.message}`);
   }
 };

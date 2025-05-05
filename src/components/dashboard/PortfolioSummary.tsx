@@ -51,7 +51,7 @@ const PortfolioSummary = ({ portfolio }: PortfolioSummaryProps) => {
     return (
       <span className={className}>
         {value > 0 ? '+' : ''}
-        {value.toFixed(2)}%
+        {(value ?? 0).toFixed(2)}%
       </span>
     );
   };
