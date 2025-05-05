@@ -34,8 +34,15 @@ const DashboardHeader = () => {
   
   // Load watchlists on mount
   useEffect(() => {
-    const loadedWatchlists = getWatchlists();
-    setWatchlists(loadedWatchlists);
+    getWatchlists().then((loadedWatchlists) => {
+      if (Array.isArray(loadedWatchlists)) {
+        setWatchlists(loadedWatchlists);
+      } else {
+        console.error('Expected an array for watchlists, but got:', loadedWatchlists);
+      }
+    }).catch(error => {
+      console.error('Error loading watchlists:', error);
+    });
   }, []);
   
   const handleLogout = () => {
