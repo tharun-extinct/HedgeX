@@ -33,7 +33,15 @@ interface WatchlistManagerProps {
 }
 
 const WatchlistManager = ({ stocks, selectedStock, onSelectStock }: WatchlistManagerProps) => {
-  // Ensure all JSX elements are correctly imported and structured
+  const [currentWatchlistName, setCurrentWatchlistName] = useState<string>('Default Watchlist');
+
+  useEffect(() => {
+    const activeWatchlist = watchlists.find(watchlist => watchlist.id === selectedStock);
+    if (activeWatchlist) {
+      setCurrentWatchlistName(activeWatchlist.name);
+    }
+  }, [selectedStock, watchlists]);
+
   return (
     <div className="bg-card rounded-lg border shadow-sm">
       <div className="p-4 border-b">

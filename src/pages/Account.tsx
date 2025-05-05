@@ -116,10 +116,9 @@ const Account = () => {
   const handleSaveWatchlistNames = () => {
     let updatedWatchlists = [...watchlists];
     
-    Object.entries(watchlistNames).forEach(([id, name]) => {
-      if (name.trim() !== '') {
-        updatedWatchlists = updateWatchlistName(id, name.trim());
-      }
+    Object.entries(watchlistNames).forEach(([id, name], index) => {
+      const newName = `Watchlist ${index + 1}`;
+      updatedWatchlists = updateWatchlistName(id, newName);
     });
     
     setWatchlists(updatedWatchlists);
@@ -207,12 +206,12 @@ const Account = () => {
                   {watchlists.map((watchlist) => (
                     <div key={watchlist.id} className="space-y-2">
                       <Label htmlFor={`watchlist-${watchlist.id}`}>
-                        {watchlist.id.replace('watchlist-', 'Watchlist ')}
+                        watchlist.id.toString().replace('watchlist-', 'Watchlist ')
                       </Label>
                       <Input 
                         id={`watchlist-${watchlist.id}`} 
                         value={watchlistNames[watchlist.id] || ''}
-                        placeholder={`Watchlist ${watchlist.id.split('-')[1]}`}
+                        placeholder={`Watchlist ${watchlist.id.toString().split('-')[1]}`}
                         onChange={(e) => handleWatchlistNameChange(watchlist.id, e.target.value)}
                       />
                     </div>
